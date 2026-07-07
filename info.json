@@ -1,0 +1,15 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Chatterino/chatterino2/master/docs/plugin-info.schema.json",
+    "name": "Copypasta Detector",
+    "description": "Detects copypastas (identical messages from multiple users within a short time window) and lets you join the party with one click or automatically.",
+    "authors": ["Boy"],
+    "homepage": "https://github.com/Chatterino/chatterino2",
+    "tags": ["copypasta", "twitch", "fun"],
+    "version": "1.1.0",
+    "license": "MIT",
+    "permissions": [
+        { "type": "FilesystemRead" },
+        { "type": "FilesystemWrite" },
+        { "type": "Network" }
+    ]
+}
