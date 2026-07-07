@@ -18,3 +18,6 @@ command list:
 /cp list - only shows channels it currently works with.
 
 /cp help | /cp - shows commands available 
+
+Plugin goes into 
+"Chatterino2\Plugins\copypasta"
