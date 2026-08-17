@@ -73,18 +73,24 @@ local function on_pasta(name, ev)
     if not ok_type or ctype ~= c2.ChannelType.Twitch then
         return
     end
-
+    
+    -- Popup is always shown, regardless of blocked terms
     local st = popup.show(channel, name, ev.text, ev.count)
-    log("pasta in #" .. name .. " (" .. ev.count .. " users): "
-        .. util.shorten(ev.text, 80))
-
+    log("pasta in #" .. name .. " (" .. ev.count .. " users): " .. util.shorten(ev.text, 80))
+    
     if settings.values.auto and st then
-        local sent, err = try_send(channel)
-        if not sent then
+        -- NEW: Check if the pasta contains any blocked terms
+        if util.contains_blocked_term(ev.text, settings.values.blocked_terms) then
             pcall(function()
-                channel:add_system_message("[cp] auto-send failed: "
-                    .. (sender.ERRORS[err] or tostring(err)))
+                channel:add_system_message("[cp] auto-send blocked: message contains a blocked term")
             end)
+        else
+            local sent, err = try_send(channel)
+            if not sent then
+                pcall(function()
+                    channel:add_system_message("[cp] auto-send failed: " .. (sender.ERRORS[err] or tostring(err)))
+                end)
+            end
         end
     end
 end
@@ -127,12 +133,13 @@ local function sweep_loop()
     pcall(function() detector:sweep(clock.now()) end)
     c2.later(sweep_loop, SWEEP_MS)
 end
-sweep_loop()
 
+sweep_loop()
 app.sync()
 
 log("plugin loaded · threshold " .. settings.values.threshold
     .. " users in " .. settings.values.window_s
     .. " s · popup " .. settings.values.popup_s
     .. " s · auto: " .. (settings.values.auto and "on" or "off")
-    .. " · channels: " .. settings.channels_pretty())
+    .. " · channels: " .. settings.channels_pretty()
+    .. " · blocked terms: " .. #settings.values.blocked_terms)
