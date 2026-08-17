@@ -1,8 +1,6 @@
 local json = require("chatterino.json")
 local util = require("lib.util")
-
 local settings = {}
-
 local FILE_CANDIDATES = { "settings.json", "data/settings.json" }
 
 settings.DEFAULTS = {
@@ -11,6 +9,7 @@ settings.DEFAULTS = {
     popup_s   = 5,
     auto      = false,
     channels  = {},
+    blocked_terms = {},
 }
 
 settings.LIMITS = {
@@ -20,9 +19,7 @@ settings.LIMITS = {
 }
 
 settings.MAX_CHANNELS = 15
-
 settings.values = nil
-
 local active_path = nil
 
 local function fresh_defaults()
@@ -33,22 +30,25 @@ local function fresh_defaults()
         popup_s   = d.popup_s,
         auto      = d.auto,
         channels  = {},
+        blocked_terms = {},
     }
 end
 
 local function sanitize(raw)
     local v = fresh_defaults()
     if type(raw) ~= "table" then return v end
-
+    
     for key, range in pairs(settings.LIMITS) do
         local n = tonumber(raw[key])
         if n then
             v[key] = util.clamp_int(n, range[1], range[2])
         end
     end
+    
     if type(raw.auto) == "boolean" then
         v.auto = raw.auto
     end
+    
     if type(raw.channels) == "table" then
         local seen = {}
         for _, name in ipairs(raw.channels) do
@@ -62,16 +62,30 @@ local function sanitize(raw)
             end
         end
     end
+
+
+    if type(raw.blocked_terms) == "table" then
+        local seen = {}
+        for _, term in ipairs(raw.blocked_terms) do
+            if type(term) == "string" then
+                term = term:lower()
+                if term ~= "" and not seen[term] then
+                    seen[term] = true
+                    v.blocked_terms[#v.blocked_terms + 1] = term
+                end
+            end
+        end
+    end
+    
     return v
 end
 
 function settings.load(log)
     settings.values = fresh_defaults()
-
     for _, path in ipairs(FILE_CANDIDATES) do
         local ok, file = pcall(io.open, path, "r")
         if ok and file then
-            local content = file:read("a")
+            local content = file:read("*a")
             file:close()
             active_path = path
             if content and content ~= "" then
@@ -91,13 +105,11 @@ end
 
 function settings.save(log)
     local payload = json.stringify(settings.values, { pretty = true })
-
     local paths = {}
     if active_path then paths[#paths + 1] = active_path end
     for _, p in ipairs(FILE_CANDIDATES) do
         if p ~= active_path then paths[#paths + 1] = p end
     end
-
     for _, path in ipairs(paths) do
         local ok, file = pcall(io.open, path, "w")
         if ok and file then
@@ -107,16 +119,17 @@ function settings.save(log)
             return true
         end
     end
-
     if log then log("failed to save settings (missing FilesystemWrite permission?)") end
     return false
 end
 
 function settings.reset(clear_channels)
     local channels = settings.values.channels
+    local blocked_terms = settings.values.blocked_terms
     settings.values = fresh_defaults()
     if not clear_channels then
         settings.values.channels = channels
+        settings.values.blocked_terms = blocked_terms
     end
 end
 
@@ -158,6 +171,42 @@ function settings.channels_pretty()
     end
     local copy = {}
     for i, ch in ipairs(settings.values.channels) do copy[i] = ch end
+    table.sort(copy)
+    return table.concat(copy, ", ")
+end
+
+function settings.has_blocked_term(term)
+    term = term:lower()
+    for _, t in ipairs(settings.values.blocked_terms) do
+        if t == term then return true end
+    end
+    return false
+end
+
+function settings.add_blocked_term(term)
+    term = term:lower()
+    if settings.has_blocked_term(term) then return false end
+    table.insert(settings.values.blocked_terms, term)
+    return true
+end
+
+function settings.remove_blocked_term(term)
+    term = term:lower()
+    for i, t in ipairs(settings.values.blocked_terms) do
+        if t == term then
+            table.remove(settings.values.blocked_terms, i)
+            return true
+        end
+    end
+    return false
+end
+
+function settings.blocked_terms_pretty()
+    if #settings.values.blocked_terms == 0 then
+        return "none"
+    end
+    local copy = {}
+    for i, t in ipairs(settings.values.blocked_terms) do copy[i] = t end
     table.sort(copy)
     return table.concat(copy, ", ")
 end

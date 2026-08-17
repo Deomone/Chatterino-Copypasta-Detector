@@ -21,7 +21,6 @@ end
 function util.parse_irc(line)
     local msg = { tags = {}, params = {} }
     local pos = 1
-
     if line:sub(1, 1) == "@" then
         local sp = line:find(" ", 1, true)
         if not sp then return nil end
@@ -34,14 +33,12 @@ function util.parse_irc(line)
         end
         pos = sp + 1
     end
-
     if line:sub(pos, pos) == ":" then
         local sp = line:find(" ", pos, true)
         if not sp then return nil end
         msg.prefix = line:sub(pos + 1, sp - 1)
         pos = sp + 1
     end
-
     local rest = line:sub(pos)
     local trailing
     local tpos = rest:find(" :", 1, true)
@@ -59,7 +56,6 @@ function util.parse_irc(line)
     if trailing ~= nil then
         msg.params[#msg.params + 1] = trailing
     end
-
     if not msg.command then return nil end
     return msg
 end
@@ -76,9 +72,7 @@ function util.normalize(text)
     if action then
         text = "/me " .. action
     end
-
     text = text:gsub("[\r\n]", " ")
-
     while true do
         local trimmed = text:gsub("%s+$", "")
         if trimmed:sub(-#DUP_TAIL) == DUP_TAIL then
@@ -87,7 +81,6 @@ function util.normalize(text)
         if trimmed == text then break end
         text = trimmed
     end
-
     return (text:gsub("^%s+", ""))
 end
 
@@ -128,6 +121,17 @@ function util.shorten(s, max_cp)
     end)
     if ok then return res end
     return s:sub(1, max_cp)
+end
+
+function util.contains_blocked_term(text, blocked_terms)
+    if not blocked_terms or #blocked_terms == 0 then return false end
+    local lower_text = text:lower()
+    for _, term in ipairs(blocked_terms) do
+        if lower_text:find(term, 1, true) then 
+            return true
+        end
+    end
+    return false
 end
 
 return util

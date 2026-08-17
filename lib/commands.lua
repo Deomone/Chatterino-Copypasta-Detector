@@ -1,10 +1,9 @@
 local util = require("lib.util")
-
 local commands = {}
 
 local SUBCOMMANDS = {
-    "on", "off", "auto", "send", "timeout", "threshold", "window",
-    "status", "list", "reset", "help",
+    "on ", "off ", "auto ", "send ", "timeout ", "threshold ", "window ",
+    "status ", "list ", "reset ", "help ", "block ", "unblock ", "blocks ",
 }
 
 function commands.register(app)
@@ -62,7 +61,6 @@ function commands.register(app)
         end
         local name = chan_name(ctx.channel)
         if not name then return end
-
         local ok, err = settings.add_channel(name)
         if err == "limit" then
             reply(ctx.channel, "watched channel limit reached ("
@@ -77,7 +75,6 @@ function commands.register(app)
         else
             reply(ctx.channel, "already enabled in #" .. name)
         end
-
         local anon = false
         pcall(function()
             local acc = c2.current_account()
@@ -151,6 +148,38 @@ function commands.register(app)
     handlers.threshold = numeric_setter("threshold", "detection threshold", "users")
     handlers.window    = numeric_setter("window_s",  "analysis window",    "s")
 
+    handlers.block = function(ctx)
+        local term = (ctx.words[3] or ""):lower()
+        if term == "" then
+            reply(ctx.channel, "usage: " .. cmd .. " block <term>")
+            return
+        end
+        if settings.add_blocked_term(term) then
+            app.save()
+            reply(ctx.channel, "blocked term \"" .. term .. "\" added")
+        else
+            reply(ctx.channel, "term \"" .. term .. "\" is already blocked")
+        end
+    end
+
+    handlers.unblock = function(ctx)
+        local term = (ctx.words[3] or ""):lower()
+        if term == "" then
+            reply(ctx.channel, "usage: " .. cmd .. " unblock <term>")
+            return
+        end
+        if settings.remove_blocked_term(term) then
+            app.save()
+            reply(ctx.channel, "blocked term \"" .. term .. "\" removed")
+        else
+            reply(ctx.channel, "term \"" .. term .. "\" was not blocked")
+        end
+    end
+
+    handlers.blocks = function(ctx)
+        reply(ctx.channel, "blocked terms: " .. settings.blocked_terms_pretty())
+    end
+
     handlers.status = function(ctx)
         local name = chan_name(ctx.channel)
         local here = "-"
@@ -165,6 +194,7 @@ function commands.register(app)
             .. " s · auto: " .. (settings.values.auto and "on" or "off"))
         reply(ctx.channel, "channels (" .. #settings.values.channels .. "/" .. settings.MAX_CHANNELS
             .. "): " .. settings.channels_pretty()
+            .. " · blocked terms: " .. #settings.values.blocked_terms
             .. " · active popups: " .. app.popup.active_count()
             .. " · analyzing: " .. texts_n .. " text(s) in " .. channels_n .. " channel(s)")
     end
@@ -190,7 +220,8 @@ function commands.register(app)
 
     handlers.help = function(ctx)
         reply(ctx.channel, "commands: " .. cmd .. " on · off [all] · auto [on|off] · send · "
-            .. "timeout N · threshold N · window N · status · list · reset [all]")
+            .. "timeout N · threshold N · window N · status · list · reset [all] · "
+            .. "block <term> · unblock <term> · blocks")
         reply(ctx.channel, "clicking the popup = " .. cmd .. " send: sends the pasta and restarts the timer")
     end
 
@@ -205,6 +236,7 @@ function commands.register(app)
             reply(ctx.channel, "internal error, see the Chatterino logs")
         end
     end)
+
     if not ok then
         c2.log(c2.LogLevel.Warning, "copypasta: command " .. cmd .. " is already taken by another plugin")
     end
