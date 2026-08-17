@@ -21,3 +21,15 @@ command list:
 
 Plugin goes into 
 "Chatterino2\Plugins\copypasta"
+
+
+v1.2
+added blocked terms
+
+usage:
+
+/cp block - /cp block <term> add term to block list
+
+/cp unblock - /cp unblock <term> remove term from block list
+
+/cp blocks - list blocked terms
