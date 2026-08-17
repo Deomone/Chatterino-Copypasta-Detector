@@ -23,7 +23,7 @@ Plugin goes into
 "Chatterino2\Plugins\copypasta"
 
 
-v1.2
+- v1.2
 added blocked terms
 
 usage:
