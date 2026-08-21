@@ -4,6 +4,7 @@ local commands = {}
 local SUBCOMMANDS = {
     "on ", "off ", "auto ", "send ", "timeout ", "threshold ", "window ",
     "status ", "list ", "reset ", "help ", "block ", "unblock ", "blocks ",
+    "today ", "tz ",
 }
 
 function commands.register(app)
@@ -144,9 +145,10 @@ function commands.register(app)
         end
     end
 
-    handlers.timeout   = numeric_setter("popup_s",   "popup duration",     "s")
-    handlers.threshold = numeric_setter("threshold", "detection threshold", "users")
-    handlers.window    = numeric_setter("window_s",  "analysis window",    "s")
+    handlers.timeout   = numeric_setter("popup_s",       "popup duration",      "s")
+    handlers.threshold = numeric_setter("threshold",     "detection threshold", "users")
+    handlers.window    = numeric_setter("window_s",      "analysis window",     "s")
+    handlers.tz        = numeric_setter("tz_offset_h",   "timezone offset",     "h")
 
     handlers.block = function(ctx)
         local term = (ctx.words[3] or ""):lower()
@@ -180,6 +182,12 @@ function commands.register(app)
         reply(ctx.channel, "blocked terms: " .. settings.blocked_terms_pretty())
     end
 
+    handlers.today = function(ctx)
+        reply(ctx.channel, "pastas sent today: " .. settings.get_sent_today()
+            .. " · plugin date: " .. settings.today_date()
+            .. " · tz offset: " .. settings.values.tz_offset_h .. " h")
+    end
+
     handlers.status = function(ctx)
         local name = chan_name(ctx.channel)
         local here = "-"
@@ -191,7 +199,8 @@ function commands.register(app)
         reply(ctx.channel, "threshold: " .. settings.values.threshold
             .. " users · window: " .. settings.values.window_s
             .. " s · popup: " .. settings.values.popup_s
-            .. " s · auto: " .. (settings.values.auto and "on" or "off"))
+            .. " s · auto: " .. (settings.values.auto and "on" or "off")
+            .. " · sent today: " .. settings.get_sent_today())
         reply(ctx.channel, "channels (" .. #settings.values.channels .. "/" .. settings.MAX_CHANNELS
             .. "): " .. settings.channels_pretty()
             .. " · blocked terms: " .. #settings.values.blocked_terms
@@ -221,7 +230,7 @@ function commands.register(app)
     handlers.help = function(ctx)
         reply(ctx.channel, "commands: " .. cmd .. " on · off [all] · auto [on|off] · send · "
             .. "timeout N · threshold N · window N · status · list · reset [all] · "
-            .. "block <term> · unblock <term> · blocks")
+            .. "block <term> · unblock <term> · blocks · today · tz N")
         reply(ctx.channel, "clicking the popup = " .. cmd .. " send: sends the pasta and restarts the timer")
     end
 

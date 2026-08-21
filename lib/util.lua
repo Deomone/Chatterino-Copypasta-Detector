@@ -127,7 +127,7 @@ function util.contains_blocked_term(text, blocked_terms)
     if not blocked_terms or #blocked_terms == 0 then return false end
     local lower_text = text:lower()
     for _, term in ipairs(blocked_terms) do
-        if lower_text:find(term, 1, true) then 
+        if lower_text:find(term, 1, true) then
             return true
         end
     end

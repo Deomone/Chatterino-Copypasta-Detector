@@ -1,21 +1,26 @@
-local json = require("chatterino.json")
-local util = require("lib.util")
+local json  = require("chatterino.json")
+local util  = require("lib.util")
+local clock = require("lib.clock")
 local settings = {}
 local FILE_CANDIDATES = { "settings.json", "data/settings.json" }
 
 settings.DEFAULTS = {
-    threshold = 5,
-    window_s  = 30,
-    popup_s   = 5,
-    auto      = false,
-    channels  = {},
+    threshold     = 5,
+    window_s      = 30,
+    popup_s       = 5,
+    auto          = false,
+    channels      = {},
     blocked_terms = {},
+    tz_offset_h   = 0,
+    sent_today    = 0,
+    sent_date     = "",
 }
 
 settings.LIMITS = {
-    threshold = { 2, 100 },
-    window_s  = { 5, 600 },
-    popup_s   = { 2, 120 },
+    threshold   = { 2, 100 },
+    window_s    = { 5, 600 },
+    popup_s     = { 2, 120 },
+    tz_offset_h = { -14, 14 },
 }
 
 settings.MAX_CHANNELS = 15
@@ -25,30 +30,48 @@ local active_path = nil
 local function fresh_defaults()
     local d = settings.DEFAULTS
     return {
-        threshold = d.threshold,
-        window_s  = d.window_s,
-        popup_s   = d.popup_s,
-        auto      = d.auto,
-        channels  = {},
+        threshold     = d.threshold,
+        window_s      = d.window_s,
+        popup_s       = d.popup_s,
+        auto          = d.auto,
+        channels      = {},
         blocked_terms = {},
+        tz_offset_h   = d.tz_offset_h,
+        sent_today    = 0,
+        sent_date     = "",
     }
+end
+
+local function civil_from_days(z)
+    z = z + 719468
+    local era = math.floor(z / 146097)
+    local doe = z - era * 146097
+    local yoe = math.floor((doe - math.floor(doe / 1460)
+        + math.floor(doe / 36524) - math.floor(doe / 146096)) / 365)
+    local y = yoe + era * 400
+    local doy = doe - (365 * yoe + math.floor(yoe / 4) - math.floor(yoe / 100))
+    local mp = math.floor((5 * doy + 2) / 153)
+    local d = doy - math.floor((153 * mp + 2) / 5) + 1
+    local m = mp + (mp < 10 and 3 or -9)
+    if m <= 2 then y = y + 1 end
+    return y, m, d
 end
 
 local function sanitize(raw)
     local v = fresh_defaults()
     if type(raw) ~= "table" then return v end
-    
+
     for key, range in pairs(settings.LIMITS) do
         local n = tonumber(raw[key])
         if n then
             v[key] = util.clamp_int(n, range[1], range[2])
         end
     end
-    
+
     if type(raw.auto) == "boolean" then
         v.auto = raw.auto
     end
-    
+
     if type(raw.channels) == "table" then
         local seen = {}
         for _, name in ipairs(raw.channels) do
@@ -63,7 +86,6 @@ local function sanitize(raw)
         end
     end
 
-
     if type(raw.blocked_terms) == "table" then
         local seen = {}
         for _, term in ipairs(raw.blocked_terms) do
@@ -76,7 +98,20 @@ local function sanitize(raw)
             end
         end
     end
-    
+
+    local sent = tonumber(raw.sent_today)
+    if sent then
+        sent = math.floor(sent)
+        if sent ~= sent or sent < 0 then
+            sent = 0
+        end
+        v.sent_today = sent
+    end
+
+    if type(raw.sent_date) == "string" then
+        v.sent_date = raw.sent_date
+    end
+
     return v
 end
 
@@ -124,13 +159,19 @@ function settings.save(log)
 end
 
 function settings.reset(clear_channels)
-    local channels = settings.values.channels
-    local blocked_terms = settings.values.blocked_terms
+    local channels      = settings.values and settings.values.channels or {}
+    local blocked_terms = settings.values and settings.values.blocked_terms or {}
+    local sent_today    = settings.values and settings.values.sent_today or 0
+    local sent_date     = settings.values and settings.values.sent_date or ""
+
     settings.values = fresh_defaults()
+
     if not clear_channels then
         settings.values.channels = channels
-        settings.values.blocked_terms = blocked_terms
     end
+    settings.values.blocked_terms = blocked_terms
+    settings.values.sent_today = sent_today
+    settings.values.sent_date = sent_date
 end
 
 function settings.has_channel(name)
@@ -209,6 +250,38 @@ function settings.blocked_terms_pretty()
     for i, t in ipairs(settings.values.blocked_terms) do copy[i] = t end
     table.sort(copy)
     return table.concat(copy, ", ")
+end
+
+function settings.today_date()
+    local now = clock.now()
+    if type(now) ~= "number" or now <= 0 then
+        return "unknown"
+    end
+    local offset_ms = (settings.values.tz_offset_h or 0) * 3600000
+    local y, m, d = civil_from_days(math.floor((now + offset_ms) / 86400000))
+    return string.format("%04d-%02d-%02d", y, m, d)
+end
+
+function settings.get_sent_today()
+    if not settings.values then return 0 end
+    if settings.values.sent_date == settings.today_date() then
+        return settings.values.sent_today or 0
+    end
+    return 0
+end
+
+function settings.record_sent_today()
+    if not settings.values then
+        settings.values = fresh_defaults()
+    end
+    local today = settings.today_date()
+    if settings.values.sent_date ~= today then
+        settings.values.sent_date = today
+        settings.values.sent_today = 1
+    else
+        settings.values.sent_today = (settings.values.sent_today or 0) + 1
+    end
+    return settings.values.sent_today
 end
 
 return settings
