@@ -33,3 +33,10 @@ usage:
 /cp unblock - /cp unblock <term> remove term from block list
 
 /cp blocks - list blocked terms
+
+- v1.3 
+you can check amount of pastas sent today
+
+/cp tz - set your timezone UTC format 5 for UTC+5 or -2 for UTC-2 timezone
+
+/cp today | /cp status - check amount of messages sent today
