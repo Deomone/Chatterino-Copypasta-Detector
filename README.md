@@ -45,3 +45,8 @@ you can check amount of pastas sent today
 added randomisation for amount of users bot detects a paste
 
 /cp threshold (min.s)-(max.s)
+
+- v1.4.5
+added timeout for autosend to send pasta only after x amount of second after the last one
+
+/cp pause (time.s) / 0 for removing timeout
