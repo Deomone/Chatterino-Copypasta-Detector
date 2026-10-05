@@ -5,7 +5,7 @@
     "authors": ["Boy"],
     "homepage": "https://github.com/Chatterino/chatterino2",
     "tags": ["copypasta", "twitch", "fun"],
-    "version": "1.4.0",
+    "version": "1.4.5",
     "license": "MIT",
     "permissions": [
         { "type": "FilesystemRead" },

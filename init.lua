@@ -32,6 +32,7 @@ popup.init({
 sender.init({ clock = clock, log = log })
 
 local me_cache = { login = nil, valid_until = 0 }
+local auto_pause_until = 0
 
 local function my_login()
     local now = clock.now()
@@ -50,7 +51,13 @@ local function my_login()
     return login
 end
 
-local function try_send(channel)
+local function pause_remaining_ms()
+    local r = auto_pause_until - clock.now()
+    if r < 0 then return 0 end
+    return r
+end
+
+local function try_send(channel, is_auto)
     local ok_name, name = pcall(function() return channel:get_name() end)
     if not ok_name then
         return false, "channel_invalid"
@@ -68,6 +75,10 @@ local function try_send(channel)
         end)
         if not rec_ok then
             log("failed to record the daily counter: " .. tostring(rec_err))
+        end
+        if is_auto and settings.values.pause_s > 0 then
+            auto_pause_until = clock.now() + settings.values.pause_s * 1000
+            log("auto-send paused for " .. settings.values.pause_s .. " s")
         end
     end
     return ok, err
@@ -92,8 +103,13 @@ local function on_pasta(name, ev)
             pcall(function()
                 channel:add_system_message("[cp] auto-send blocked: message contains a blocked term")
             end)
+        elseif pause_remaining_ms() > 0 then
+            pcall(function()
+                channel:add_system_message("[cp] auto-send paused: "
+                    .. util.ceil_s(pause_remaining_ms()) .. " s left")
+            end)
         else
-            local sent, err = try_send(channel)
+            local sent, err = try_send(channel, true)
             if not sent then
                 pcall(function()
                     channel:add_system_message("[cp] auto-send failed: "
@@ -132,6 +148,7 @@ local app = {
     save     = function() settings.save(log) end,
     sync     = function() irc.sync(settings.values.channels) end,
     try_send = try_send,
+    pause_remaining_s = function() return util.ceil_s(pause_remaining_ms()) end,
 }
 
 commands.register(app)
@@ -153,6 +170,7 @@ local thresh_str = (min_v == max_v) and tostring(min_v) or (min_v .. "-" .. max_
 log("plugin loaded · threshold " .. thresh_str
     .. " users in " .. settings.values.window_s
     .. " s · popup " .. settings.values.popup_s
+    .. " s · pause " .. settings.values.pause_s
     .. " s · auto: " .. (settings.values.auto and "on" or "off")
     .. " · channels: " .. settings.channels_pretty()
     .. " · blocked terms: " .. #settings.values.blocked_terms

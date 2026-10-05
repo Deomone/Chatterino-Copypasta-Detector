@@ -9,6 +9,7 @@ settings.DEFAULTS = {
     threshold_max = 5,
     window_s      = 30,
     popup_s       = 5,
+    pause_s       = 0,
     auto          = false,
     channels      = {},
     blocked_terms = {},
@@ -22,6 +23,7 @@ settings.LIMITS = {
     threshold_max = { 2, 100 },
     window_s      = { 5, 600 },
     popup_s       = { 2, 120 },
+    pause_s       = { 0, 3600 },
     tz_offset_h   = { -14, 14 },
 }
 
@@ -36,6 +38,7 @@ local function fresh_defaults()
         threshold_max = d.threshold_max,
         window_s      = d.window_s,
         popup_s       = d.popup_s,
+        pause_s       = d.pause_s,
         auto          = d.auto,
         channels      = {},
         blocked_terms = {},
