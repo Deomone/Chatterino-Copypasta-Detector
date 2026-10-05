@@ -54,7 +54,12 @@ function detector:on_message(channel, login, text, now)
         if chan_state.n >= MAX_TEXTS_PER_CHANNEL then
             evict_oldest(chan_state)
         end
-        entry = { users = {}, last = now, announced = false }
+            entry = {
+            users     = {},
+            last      = now,
+            announced = false,
+            threshold = self.threshold_fn(),
+        }
         chan_state.texts[text] = entry
         chan_state.n = chan_state.n + 1
     end
@@ -64,9 +69,9 @@ function detector:on_message(channel, login, text, now)
 
     local count = prune_entry(entry, now - self.window_ms_fn())
 
-    if not entry.announced and count >= self.threshold_fn() then
+    if not entry.announced and count >= entry.threshold then
         entry.announced = true
-        return { text = text, count = count }
+        return { text = text, count = count, threshold = entry.threshold }
     end
     return nil
 end
