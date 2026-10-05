@@ -5,7 +5,8 @@ local settings = {}
 local FILE_CANDIDATES = { "settings.json", "data/settings.json" }
 
 settings.DEFAULTS = {
-    threshold     = 5,
+    threshold_min = 5,
+    threshold_max = 5,
     window_s      = 30,
     popup_s       = 5,
     auto          = false,
@@ -17,10 +18,11 @@ settings.DEFAULTS = {
 }
 
 settings.LIMITS = {
-    threshold   = { 2, 100 },
-    window_s    = { 5, 600 },
-    popup_s     = { 2, 120 },
-    tz_offset_h = { -14, 14 },
+    threshold_min = { 2, 100 },
+    threshold_max = { 2, 100 },
+    window_s      = { 5, 600 },
+    popup_s       = { 2, 120 },
+    tz_offset_h   = { -14, 14 },
 }
 
 settings.MAX_CHANNELS = 15
@@ -30,7 +32,8 @@ local active_path = nil
 local function fresh_defaults()
     local d = settings.DEFAULTS
     return {
-        threshold     = d.threshold,
+        threshold_min = d.threshold_min,
+        threshold_max = d.threshold_max,
         window_s      = d.window_s,
         popup_s       = d.popup_s,
         auto          = d.auto,
@@ -61,11 +64,20 @@ local function sanitize(raw)
     local v = fresh_defaults()
     if type(raw) ~= "table" then return v end
 
+    if type(raw.threshold) == "number" and raw.threshold_min == nil then
+        raw.threshold_min = raw.threshold
+        raw.threshold_max = raw.threshold
+    end
+
     for key, range in pairs(settings.LIMITS) do
         local n = tonumber(raw[key])
         if n then
             v[key] = util.clamp_int(n, range[1], range[2])
         end
+    end
+
+    if v.threshold_min > v.threshold_max then
+        v.threshold_min, v.threshold_max = v.threshold_max, v.threshold_min
     end
 
     if type(raw.auto) == "boolean" then
@@ -282,6 +294,13 @@ function settings.record_sent_today()
         settings.values.sent_today = (settings.values.sent_today or 0) + 1
     end
     return settings.values.sent_today
+end
+
+function settings.get_random_threshold()
+    local min_v = settings.values.threshold_min
+    local max_v = settings.values.threshold_max
+    if min_v == max_v then return min_v end
+    return math.random(min_v, max_v)
 end
 
 return settings

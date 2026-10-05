@@ -33,8 +33,9 @@ function commands.register(app)
         return function(ctx)
             local raw = ctx.words[3]
             if not raw then
+                local current_val = settings.values[key]
                 reply(ctx.channel, label .. " is currently: "
-                    .. settings.values[key] .. " " .. unit
+                    .. current_val .. " " .. unit
                     .. ". Usage: " .. cmd .. " " .. ctx.words[2] .. " <number>")
                 return
             end
@@ -71,8 +72,11 @@ function commands.register(app)
         app.sync()
         if ok then
             app.save()
+            local thresh_str = settings.values.threshold_min == settings.values.threshold_max
+                and tostring(settings.values.threshold_min)
+                or (settings.values.threshold_min .. "-" .. settings.values.threshold_max)
             reply(ctx.channel, "pasta detection in #" .. name .. " ENABLED · threshold "
-                .. settings.values.threshold .. " users in " .. settings.values.window_s .. " s")
+                .. thresh_str .. " users in " .. settings.values.window_s .. " s")
         else
             reply(ctx.channel, "already enabled in #" .. name)
         end
@@ -145,10 +149,51 @@ function commands.register(app)
         end
     end
 
-    handlers.timeout   = numeric_setter("popup_s",       "popup duration",      "s")
-    handlers.threshold = numeric_setter("threshold",     "detection threshold", "users")
-    handlers.window    = numeric_setter("window_s",      "analysis window",     "s")
-    handlers.tz        = numeric_setter("tz_offset_h",   "timezone offset",     "h")
+    handlers.timeout = numeric_setter("popup_s",   "popup duration",  "s")
+    handlers.window  = numeric_setter("window_s",  "analysis window", "s")
+    handlers.tz      = numeric_setter("tz_offset_h", "timezone offset", "h")
+
+    handlers.threshold = function(ctx)
+        local raw = ctx.words[3]
+        if not raw then
+            local min_v = settings.values.threshold_min
+            local max_v = settings.values.threshold_max
+            local current_str = (min_v == max_v) and tostring(min_v) or (min_v .. "-" .. max_v)
+            reply(ctx.channel, "threshold is currently: " .. current_str
+                .. " users. Usage: " .. cmd .. " threshold <number> or <min-max>")
+            return
+        end
+
+        local min_v, max_v
+        local dash_pos = raw:find("-", 2, true) -- start at 2 to allow negative numbers if ever needed, though limits are positive
+        if dash_pos then
+            min_v = tonumber(raw:sub(1, dash_pos - 1))
+            max_v = tonumber(raw:sub(dash_pos + 1))
+        else
+            min_v = tonumber(raw)
+            max_v = min_v
+        end
+
+        if not min_v or not max_v then
+            reply(ctx.channel, "invalid format. Use a number (e.g. 5) or a range (e.g. 4-7)")
+            return
+        end
+
+        local lo, hi = settings.LIMITS.threshold_min[1], settings.LIMITS.threshold_max[2]
+        min_v = util.clamp_int(min_v, lo, hi)
+        max_v = util.clamp_int(max_v, lo, hi)
+
+        if min_v > max_v then
+            min_v, max_v = max_v, min_v
+        end
+
+        settings.values.threshold_min = min_v
+        settings.values.threshold_max = max_v
+        app.save()
+
+        local applied_str = (min_v == max_v) and tostring(min_v) or (min_v .. "-" .. max_v)
+        reply(ctx.channel, "detection threshold: " .. applied_str .. " users")
+    end
 
     handlers.block = function(ctx)
         local term = (ctx.words[3] or ""):lower()
@@ -195,8 +240,13 @@ function commands.register(app)
             here = "#" .. name .. ": " .. (settings.has_channel(name) and "ON" or "off")
         end
         local channels_n, texts_n = app.detector:stats()
+        
+        local min_v = settings.values.threshold_min
+        local max_v = settings.values.threshold_max
+        local thresh_str = (min_v == max_v) and tostring(min_v) or (min_v .. "-" .. max_v)
+
         reply(ctx.channel, here .. " · IRC watcher: " .. app.irc.status())
-        reply(ctx.channel, "threshold: " .. settings.values.threshold
+        reply(ctx.channel, "threshold: " .. thresh_str
             .. " users · window: " .. settings.values.window_s
             .. " s · popup: " .. settings.values.popup_s
             .. " s · auto: " .. (settings.values.auto and "on" or "off")
@@ -229,7 +279,7 @@ function commands.register(app)
 
     handlers.help = function(ctx)
         reply(ctx.channel, "commands: " .. cmd .. " on · off [all] · auto [on|off] · send · "
-            .. "timeout N · threshold N · window N · status · list · reset [all] · "
+            .. "timeout N · threshold N or N-M · window N · status · list · reset [all] · "
             .. "block <term> · unblock <term> · blocks · today · tz N")
         reply(ctx.channel, "clicking the popup = " .. cmd .. " send: sends the pasta and restarts the timer")
     end

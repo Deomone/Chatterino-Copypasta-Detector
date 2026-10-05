@@ -15,8 +15,10 @@ end
 
 settings.load(log)
 
+math.randomseed(clock.now())
+
 local detector = detector_mod.new(
-    function() return settings.values.threshold end,
+    function() return settings.get_random_threshold() end,
     function() return settings.values.window_s * 1000 end
 )
 
@@ -144,7 +146,11 @@ end
 sweep_loop()
 app.sync()
 
-log("plugin loaded · threshold " .. settings.values.threshold
+local min_v = settings.values.threshold_min
+local max_v = settings.values.threshold_max
+local thresh_str = (min_v == max_v) and tostring(min_v) or (min_v .. "-" .. max_v)
+
+log("plugin loaded · threshold " .. thresh_str
     .. " users in " .. settings.values.window_s
     .. " s · popup " .. settings.values.popup_s
     .. " s · auto: " .. (settings.values.auto and "on" or "off")
