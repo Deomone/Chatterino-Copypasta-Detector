@@ -9,7 +9,7 @@ command list:
 
 /cp timeout (time) - notification time duration.
 
-/cp threshold (time) - Amount of repeating messages to detect copypasta.
+/cp threshold (amount) - Amount of repeating messages from different users to detect copypasta.
 
 /cp window (time) - timegate in which detector checking amount of same messages.
 
