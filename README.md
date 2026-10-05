@@ -40,3 +40,8 @@ you can check amount of pastas sent today
 /cp tz - set your timezone UTC format 5 for UTC+5 or -2 for UTC-2 timezone
 
 /cp today | /cp status - check amount of messages sent today
+
+- v1.4
+added randomisation for amount of users bot detects a paste
+
+/cp threshold (min.s)-(max.s)
